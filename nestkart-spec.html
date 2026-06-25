@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NestKart — Complete Rebuild Spec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #F7F5F2;
+      --white: #FFFFFF;
+      --dark: #1A1714;
+      --body: #3D3530;
+      --muted: #7A706A;
+      --border: #E4DDD8;
+      --surface: #EEEAE5;
+      --accent: #B08450;
+      --accent-light: #F5EDE0;
+      --green: #1D6B4A;
+      --green-light: #E2F0EA;
+      --red: #7A2020;
+      --red-light: #F5E4E4;
+      --blue: #1A4A7A;
+      --blue-light: #E4EDF7;
+      --purple: #3C3489;
+      --purple-light: #EEEDFE;
+      --amber: #633806;
+      --amber-light: #FAEEDA;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--dark);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--dark);
+      padding: 48px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .header__inner { max-width: 1100px; margin: 0 auto; }
+    .header__label {
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .header__title {
+      font-size: 2rem;
+      font-weight: 500;
+      color: #fff;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+    .header__sub {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.45);
+      max-width: 540px;
+      line-height: 1.7;
+    }
+    .header__meta {
+      display: flex;
+      gap: 24px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+    }
+    .meta-pill {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* ── NAV ── */
+    .toc {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 0 48px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .toc__inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .toc__inner::-webkit-scrollbar { display: none; }
+    .toc__link {
+      padding: 14px 18px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .toc__link:hover { color: var(--dark); border-bottom-color: var(--accent); }
+
+    /* ── MAIN ── */
+    .main { max-width: 1100px; margin: 0 auto; padding: 56px 48px 96px; }
+
+    /* ── SECTION ── */
+    .spec-section { margin-bottom: 64px; }
+    .spec-section__header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .spec-section__num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--dark);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .spec-section__title {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--dark);
+      letter-spacing: -0.01em;
+    }
+
+    /* ── TABLE ── */
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    .spec-table thead tr { background: var(--surface); }
+    .spec-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .spec-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--body);
+      vertical-align: top;
+    }
+    .spec-table tr:last-child td { border-bottom: none; }
+    .spec-table tr:hover td { background: var(--surface); }
+    .spec-table code {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      background: var(--surface);
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: var(--body);
+    }
+
+    /* ── BADGES ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .badge-keep   { background: var(--green-light); color: var(--green); }
+    .badge-new    { background: var(--purple-light); color: var(--purple); }
+    .badge-drop   { background: var(--red-light); color: var(--red); text-decoration: line-through; }
+    .badge-admin  { background: var(--amber-light); color: var(--amber); }
+    .badge-read   { background: var(--blue-light); color: var(--blue); }
+    .badge-write  { background: #FAECE7; color: #712B13; }
+
+    /* ── STATUS PILLS ── */
+    .s-proc { background: var(--green-light); color: var(--green); font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+    .s-disp { background: var(--purple-light); color: var(--purple); font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+    .s-tran { background: var(--amber-light); color: var(--amber); font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+    .s-delv { background: var(--blue-light); color: var(--blue); font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+    .s-canc { background: var(--red-light); color: var(--red); font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+
+    /* ── TWO COL ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .info-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+    }
+    .info-card__title {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-card__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .info-card__row:last-child { border-bottom: none; padding-bottom: 0; }
+    .info-card__key { color: var(--dark); font-weight: 500; }
+    .info-card__val { color: var(--muted); text-align: right; font-size: 12px; }
+
+    /* ── NOTE ── */
+    .note {
+      background: var(--accent-light);
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      font-size: 12px;
+      color: var(--body);
+      line-height: 1.65;
+      margin-top: 12px;
+    }
+
+    /* ── TIMELINE ── */
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .tl-col { border-right: 1px solid var(--border); }
+    .tl-col:last-child { border-right: none; }
+    .tl-head {
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .tl-body { padding: 14px; }
+    .tl-time { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .tl-actions { margin-top: 10px; }
+    .tl-action-item { font-size: 11px; color: var(--body); padding: 3px 0; }
+
+    /* ── ADMIN PREVIEW ── */
+    .admin-preview {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .admin-header {
+      background: var(--dark);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .admin-header-title { color: #fff; font-size: 13px; font-weight: 500; }
+    .admin-header-sub { color: rgba(255,255,255,0.4); font-size: 11px; }
+    .admin-customer {
+      padding: 12px 18px 6px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .admin-order { border-bottom: 1px solid var(--border); padding: 12px 18px; }
+    .admin-order:last-child { border-bottom: none; }
+    .admin-order-id { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .admin-order-items { font-size: 12px; color: var(--body); margin-bottom: 8px; line-height: 1.8; }
+    .admin-order-footer { display: flex; align-items: center; gap: 10px; }
+    .admin-select {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      color: var(--dark);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    /* ── FIN SURFACE ── */
+    .fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .fin-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .fin-card__head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .fin-card__head--read { background: var(--blue-light); color: var(--blue); }
+    .fin-card__head--write { background: #FAECE7; color: #712B13; }
+    .fin-card__row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 9px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .fin-card__row:last-child { border-bottom: none; }
+    .fin-code { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); width: 28px; flex-shrink: 0; }
+    .fin-desc { color: var(--body); flex: 1; }
+    .fin-gate { font-size: 11px; color: var(--muted); }
+
+    /* ── PAGES ── */
+    .pages-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .page-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .page-card__name {
+      padding: 10px 14px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .page-card__body { padding: 12px 14px; }
+    .page-card__item {
+      font-size: 12px;
+      color: var(--body);
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    .page-card__item:last-child { border-bottom: none; padding-bottom: 0; }
+    .dot-new { width: 7px; height: 7px; border-radius: 50%; background: var(--purple); flex-shrink: 0; }
+    .dot-existing { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+
+    /* ── CHECKOUT FLOW ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .flow-step {
+      flex: 1;
+      padding: 16px 14px;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+    .flow-step:last-child { border-right: none; }
+    .flow-step__num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+    }
+    .flow-step__title { font-size: 12px; font-weight: 500; color: var(--dark); margin-bottom: 4px; }
+    .flow-step__sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .flow-arrow {
+      color: var(--border);
+      font-size: 18px;
+      flex-shrink: 0;
+      padding: 0 2px;
+      display: none;
+    }
+
+    /* ── RESET ── */
+    .reset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .reset-col { background: var(--white); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .reset-col__head { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; }
+    .reset-col__head--wipe { background: var(--red-light); color: var(--red); }
+    .reset-col__head--keep { background: var(--green-light); color: var(--green); }
+    .reset-col__item { padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--body); }
+    .reset-col__item:last-child { border-bottom: none; }
+
+    @media (max-width: 900px) {
+      .header { padding: 32px 24px; }
+      .toc { padding: 0 24px; }
+      .main { padding: 40px 24px 72px; }
+      .two-col, .fin-grid, .pages-grid, .reset-grid { grid-template-columns: 1fr; }
+      .timeline { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      .pages-grid { grid-template-columns: 1fr; }
+      .timeline { grid-template-columns: 1fr; }
+      .flow { flex-direction: column; }
+      .flow-step { border-right: none; border-bottom: 1px solid var(--border); }
+      .flow-step:last-child { border-bottom: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header__inner">
+      <p class="header__label">Internal Spec Document</p>
+      <h1 class="header__title">NestKart — Complete Rebuild Spec</h1>
+      <p class="header__sub">Full backend and frontend decisions. Everything discussed, consolidated in one place. Hand this to Claude Cowork to build.</p>
+      <div class="header__meta">
+        <span class="meta-pill">Backend: Flask (Python)</span>
+        <span class="meta-pill">Pricing: INR (₹)</span>
+        <span class="meta-pill">22 API endpoints</span>
+        <span class="meta-pill">7 Fin connectors</span>
+        <span class="meta-pill">5 Fin write actions</span>
+        <span class="meta-pill">8 HTML pages</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="toc__inner">
+      <a href="#dropped" class="toc__link">Dropped</a>
+      <a href="#state" class="toc__link">State Model</a>
+      <a href="#progression" class="toc__link">Auto-Progression</a>
+      <a href="#apis" class="toc__link">API Surface</a>
+      <a href="#fin" class="toc__link">Fin Surface</a>
+      <a href="#checkout" class="toc__link">Checkout Flow</a>
+      <a href="#admin" class="toc__link">Admin Panel</a>
+      <a href="#reset" class="toc__link">Reset Demo</a>
+      <a href="#frontend" class="toc__link">Frontend Pages</a>
+      <a href="#images" class="toc__link">Images</a>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- 1. DROPPED -->
+    <section class="spec-section" id="dropped">
+      <div class="spec-section__header">
+        <div class="spec-section__num">1</div>
+        <h2 class="spec-section__title">What's dropped from the current backend</h2>
+      </div>
+      <table class="spec-table">
+        <thead>
+          <tr><th style="width:220px">Feature</th><th>Reason</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-drop">MTO / in_production status</span></td><td>NestKart sells standard catalogue items only — no custom-made furniture</td></tr>
+          <tr><td><span class="badge badge-drop">cancellable flag</span></td><td>Replaced by status-based logic. processing = cancellable. All other statuses = not cancellable</td></tr>
+          <tr><td><span class="badge badge-drop">Messenger canvas routes</span></td><td>Not required — removed entirely</td></tr>
+          <tr><td><span class="badge badge-drop">Waitlist endpoints</span></td><td>Low support value for a demo context</td></tr>
+          <tr><td><span class="badge badge-drop">Promo codes</span></td><td>Removed from both frontend and backend entirely</td></tr>
+          <tr><td><span class="badge badge-drop">USD pricing</span></td><td>All prices converted to INR (₹). Products renamed to match the frontend shop</td></tr>
+          <tr><td><span class="badge badge-drop">Pre-seeded carts</span></td><td>Carts start empty every session. Customer adds items manually</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 2. STATE MODEL -->
+    <section class="spec-section" id="state">
+      <div class="spec-section__header">
+        <div class="spec-section__num">2</div>
+        <h2 class="spec-section__title">State model</h2>
+      </div>
+      <div class="two-col">
+        <div class="info-card">
+          <div class="info-card__title">Hardcoded — never changes</div>
+          <div class="info-card__row"><span class="info-card__key"><code>CUSTOMERS</code></span><span class="info-card__val">5 users, fixed forever</span></div>
+          <div class="info-card__row"><span class="info-card__key"><code>PRODUCTS</code></span><span class="info-card__val">~15 items, INR prices, match frontend</span></div>
+          <div class="info-card__row"><span class="info-card__key"><code>PAYMENT_METHODS</code></span><span class="info-card__val">1 per user, 1 intentionally expired</span></div>
+          <div class="info-card__row"><span class="info-card__key"><code>ADDRESSES</code></span><span class="info-card__val">1 default address per user</span></div>
+        </div>
+        <div class="info-card">
+          <div class="info-card__title">Flexible — lives in memory</div>
+          <div class="info-card__row"><span class="info-card__key"><code>ORDERS</code></span><span class="info-card__val">Seeded (2–3 per user) + runtime checkout orders</span></div>
+          <div class="info-card__row"><span class="info-card__key"><code>CARTS</code></span><span class="info-card__val">Empty at boot. Populated by frontend</span></div>
+          <div class="info-card__row"><span class="info-card__key"><code>RETURNS</code></span><span class="info-card__val">3 seeded (RET-2201/02/03) + runtime</span></div>
+          <div class="info-card__row"><span class="info-card__key"><code>DYNAMIC_RETURNS</code></span><span class="info-card__val">Created at runtime via B2 only</span></div>
+          <div class="info-card__row"><span class="info-card__key"><code>STATUS_OVERRIDES</code></span><span class="info-card__val">Empty at boot. Admin panel writes here</span></div>
+        </div>
+      </div>
+      <div class="note">
+        Products in the PRODUCTS dict are taken directly from the existing shop.html and index.html — same names, same INR prices, same Unsplash image URLs. No new products invented.
+      </div>
+    </section>
+
+    <!-- 3. SEED ORDERS -->
+    <section class="spec-section" id="progression">
+      <div class="spec-section__header">
+        <div class="spec-section__num">3</div>
+        <h2 class="spec-section__title">Seed orders + auto-progression</h2>
+      </div>
+
+      <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Each of the 5 users gets 2–3 pre-seeded orders. Timestamps are set as <code>datetime.now() - timedelta(...)</code> so they stay accurate regardless of when the server starts. A third order is optional per user.</p>
+
+      <table class="spec-table" style="margin-bottom:20px;">
+        <thead>
+          <tr><th>Order slot</th><th>placed_at offset</th><th>Starting status</th><th>Fin scenario covered</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ORD-1 (all users)</td>
+            <td>3 days ago</td>
+            <td><span class="s-delv">delivered</span></td>
+            <td>Return / replacement — B1, B2, B4</td>
+          </tr>
+          <tr>
+            <td>ORD-2 (all users)</td>
+            <td>20 min ago</td>
+            <td><span class="s-disp">dispatched</span></td>
+            <td>Reschedule delivery — A7, A8</td>
+          </tr>
+          <tr>
+            <td>ORD-3 (optional, some users)</td>
+            <td>5 min ago</td>
+            <td><span class="s-proc">processing</span></td>
+            <td>Cancel / address update — A3, A6</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Status is <strong>never stored</strong> — it's derived on every <code>GET /api/orders/{id}</code> call from elapsed time since <code>placed_at</code>. The only exception is <code>cancelled</code>, which is a stored flag set by A3 or admin override.</p>
+
+      <div class="timeline">
+        <div class="tl-col">
+          <div class="tl-head">0 – 10 min</div>
+          <div class="tl-body">
+            <div style="margin-bottom:8px;"><span class="s-proc">processing</span></div>
+            <div class="tl-actions">
+              <div class="tl-action-item">✓ Cancel (A3)</div>
+              <div class="tl-action-item">✓ Address update (A6)</div>
+              <div class="tl-action-item">✓ Reschedule (A8)</div>
+            </div>
+          </div>
+        </div>
+        <div class="tl-col">
+          <div class="tl-head">10 – 30 min</div>
+          <div class="tl-body">
+            <div style="margin-bottom:8px;"><span class="s-disp">dispatched</span></div>
+            <div class="tl-actions">
+              <div class="tl-action-item">✓ Reschedule (A8)</div>
+              <div class="tl-action-item" style="color:var(--muted);">✗ Cancel locked</div>
+              <div class="tl-action-item" style="color:var(--muted);">✗ Address locked</div>
+            </div>
+          </div>
+        </div>
+        <div class="tl-col">
+          <div class="tl-head">30 – 90 min</div>
+          <div class="tl-body">
+            <div style="margin-bottom:8px;"><span class="s-tran">in_transit</span></div>
+            <div class="tl-actions">
+              <div class="tl-action-item" style="color:var(--muted);">Read only</div>
+              <div class="tl-action-item" style="color:var(--muted);">Tracking info only</div>
+            </div>
+          </div>
+        </div>
+        <div class="tl-col">
+          <div class="tl-head">90+ min</div>
+          <div class="tl-body">
+            <div style="margin-bottom:8px;"><span class="s-delv">delivered</span></div>
+            <div class="tl-actions">
+              <div class="tl-action-item">✓ Return (B2)</div>
+              <div class="tl-action-item">✓ Replacement (B4)</div>
+              <div class="tl-action-item" style="color:var(--muted);">If within 30-day window</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <code>STATUS_OVERRIDES</code> is checked first on every <code>GET /api/orders/{id}</code>. If an override exists → use it. If not → derive from elapsed minutes since <code>placed_at</code>. Admin reset clears all overrides and time-based logic resumes automatically.
+      </div>
+    </section>
+
+    <!-- 4. API SURFACE -->
+    <section class="spec-section" id="apis">
+      <div class="spec-section__header">
+        <div class="spec-section__num">4</div>
+        <h2 class="spec-section__title">Full API surface — 22 endpoints</h2>
+      </div>
+      <table class="spec-table">
+        <thead>
+          <tr><th style="width:72px">Status</th><th style="width:50px">Code</th><th style="width:280px">Endpoint</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="4" style="background:var(--surface); font-size:11px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); padding:8px 14px;">Domain A — Orders & Tracking</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">A1</td><td><code>GET /api/orders/{id}</code></td><td>Order details + derived live status</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">A2</td><td><code>GET /api/customers/{id}/orders</code></td><td>Full order history for a customer</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">A3</td><td><code>POST /api/orders/{id}/cancel</code></td><td>Cancel order — gated on processing status</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">A6</td><td><code>POST /api/orders/{id}/address</code></td><td>Update delivery address — gated on processing</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">A7</td><td><code>GET /api/orders/{id}/reschedule/slots</code></td><td>Available delivery dates — weekdays, +1 to +14 days from today</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">A8</td><td><code>POST /api/orders/{id}/reschedule</code></td><td>Set new delivery date — gated on processing or dispatched</td></tr>
+
+          <tr><td colspan="4" style="background:var(--surface); font-size:11px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); padding:8px 14px;">Domain B — Returns & Refunds</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">B1</td><td><code>GET /api/orders/{id}/return-eligibility</code></td><td>Return window check — only meaningful after delivered</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">B2</td><td><code>POST /api/orders/{id}/returns</code></td><td>Initiate return — gated on B1 eligible: true</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">B3</td><td><code>GET /api/returns/{id}</code></td><td>Return status + refund status + timeline</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">B4</td><td><code>POST /api/orders/{id}/replacement</code></td><td>Request replacement — gated on damage_claim_active: true</td></tr>
+
+          <tr><td colspan="4" style="background:var(--surface); font-size:11px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); padding:8px 14px;">Domain C — Account & Profile</td></tr>
+          <tr><td><span class="badge badge-keep">keep</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">C1</td><td><code>GET /api/customers/{id}</code></td><td>Profile, payment method, state flags, fin_note</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">C2</td><td><code>GET /api/customers/{id}/addresses</code></td><td>Saved delivery addresses for the customer</td></tr>
+
+          <tr><td colspan="4" style="background:var(--surface); font-size:11px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); padding:8px 14px;">Domain D — Products & Reviews</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">D1</td><td><code>GET /api/products</code></td><td>Full catalogue — filterable by category, sortable</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">D2</td><td><code>GET /api/products/{id}</code></td><td>Single product detail + stock status + category</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">D3</td><td><code>GET /api/products/{id}/reviews</code></td><td>Average rating, review count, top 3 review snippets</td></tr>
+
+          <tr><td colspan="4" style="background:var(--surface); font-size:11px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); padding:8px 14px;">Domain E — Cart & Checkout</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">E1</td><td><code>GET /api/cart/{id}</code></td><td>Cart contents + line item totals + subtotal</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">E2</td><td><code>POST /api/cart/{id}/add</code></td><td>Add item to cart — body: product_id, quantity</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">E3</td><td><code>POST /api/cart/{id}/update</code></td><td>Update item quantity — body: product_id, quantity</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">E4</td><td><code>POST /api/cart/{id}/remove</code></td><td>Remove item from cart — body: product_id</td></tr>
+          <tr><td><span class="badge badge-new">new</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">E5</td><td><code>POST /api/cart/{id}/checkout</code></td><td>Place order → creates ORD-XXXXX, clears cart, assigns delivery date</td></tr>
+
+          <tr><td colspan="4" style="background:var(--surface); font-size:11px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); padding:8px 14px;">Admin — Demo Tools Only</td></tr>
+          <tr><td><span class="badge badge-admin">admin</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">Z1</td><td><code>POST /admin/orders/{id}/set-status</code></td><td>Force any order into any status — writes to STATUS_OVERRIDES</td></tr>
+          <tr><td><span class="badge badge-admin">admin</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">Z2</td><td><code>GET /admin/orders</code></td><td>All orders across all customers — feeds admin panel, polled every 5s</td></tr>
+          <tr><td><span class="badge badge-admin">admin</span></td><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">Z3</td><td><code>POST /admin/reset</code></td><td>Full demo reset — see section 8 for exact behaviour</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        All <code>/api/*</code> routes require header <code>X-Api-Key: nk-fin-dev-key-2025</code>. All write operations verify <code>customer_id</code> owns the resource — returns 403 <code>ownership_mismatch</code> if not. <code>/admin/*</code> routes require no auth — demo only.
+      </div>
+    </section>
+
+    <!-- 5. FIN SURFACE -->
+    <section class="spec-section" id="fin">
+      <div class="spec-section__header">
+        <div class="spec-section__num">5</div>
+        <h2 class="spec-section__title">Intercom Fin surface</h2>
+      </div>
+      <div class="fin-grid">
+        <div class="fin-card">
+          <div class="fin-card__head fin-card__head--read">Data connectors — read only (7)</div>
+          <div class="fin-card__row"><span class="fin-code">A1</span><div><div class="fin-desc">Order details + live derived status</div><div class="fin-gate">Trigger: "where is my order?"</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">A2</span><div><div class="fin-desc">Full order history</div><div class="fin-gate">Trigger: "what have I ordered?"</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">A7</span><div><div class="fin-desc">Available reschedule slots</div><div class="fin-gate">Gate before calling A8</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">B1</span><div><div class="fin-desc">Return eligibility + window days remaining</div><div class="fin-gate">Trigger: "can I return this?"</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">B3</span><div><div class="fin-desc">Return status + refund status + timeline</div><div class="fin-gate">Trigger: "where is my refund?"</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">C1</span><div><div class="fin-desc">Customer profile, payment, state flags</div><div class="fin-gate">Every conversation — identity check</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">D3</span><div><div class="fin-desc">Product reviews — rating, count, snippets</div><div class="fin-gate">Trigger: "is this product good?"</div></div></div>
+        </div>
+        <div class="fin-card">
+          <div class="fin-card__head fin-card__head--write">Write actions — Fin executes (5)</div>
+          <div class="fin-card__row"><span class="fin-code">A3</span><div><div class="fin-desc">Cancel order</div><div class="fin-gate">Gate: A1 → status = processing</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">A6</span><div><div class="fin-desc">Update delivery address</div><div class="fin-gate">Gate: A1 → status = processing</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">A8</span><div><div class="fin-desc">Reschedule delivery to new date</div><div class="fin-gate">Gate: A7 slots → A1 = processing or dispatched</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">B2</span><div><div class="fin-desc">Initiate return — issues label URL</div><div class="fin-gate">Gate: B1 → eligible = true</div></div></div>
+          <div class="fin-card__row"><span class="fin-code">B4</span><div><div class="fin-desc">Request item replacement</div><div class="fin-gate">Gate: A1 → damage_claim_active = true</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. CHECKOUT FLOW -->
+    <section class="spec-section" id="checkout">
+      <div class="spec-section__header">
+        <div class="spec-section__num">6</div>
+        <h2 class="spec-section__title">Checkout flow + order structure</h2>
+      </div>
+      <div class="flow" style="margin-bottom:16px;">
+        <div class="flow-step">
+          <div class="flow-step__num">1</div>
+          <div class="flow-step__title">Browse shop.html</div>
+          <div class="flow-step__sub">Click "Add to Bag" → calls E2</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step__num">2</div>
+          <div class="flow-step__title">Review cart.html</div>
+          <div class="flow-step__sub">Items, quantities, subtotal via E1. Update via E3. Remove via E4</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step__num">3</div>
+          <div class="flow-step__title">Click "Place Order"</div>
+          <div class="flow-step__sub">E5 called. Default address used. No payment flow</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step__num">4</div>
+          <div class="flow-step__title">Order created</div>
+          <div class="flow-step__sub">ORD-XXXXX created. Cart cleared. placed_at = now</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step__num">5</div>
+          <div class="flow-step__title">Redirect + Admin update</div>
+          <div class="flow-step__sub">Redirect to orders.html. Admin panel picks up new order within 5s</div>
+        </div>
+      </div>
+      <div class="note" style="margin-bottom:16px;">
+        One order per checkout — all cart items become line items in a single <code>ORD-XXXXX</code>. Big and small items can be mixed. Delivery timeline is determined by the largest item: if any large furniture item (sofa, bed, dining table) is in the cart → <code>shipping_method = large_item</code>, <code>estimated_delivery = placed_at + 10 days</code>. All other carts → <code>shipping_method = standard</code>, <code>estimated_delivery = placed_at + 5 days</code>.
+      </div>
+      <table class="spec-table">
+        <thead><tr><th>Order field</th><th>Value / logic</th></tr></thead>
+        <tbody>
+          <tr><td><code>order_id</code></td><td>Auto-generated — ORD-10001 onwards, increments</td></tr>
+          <tr><td><code>customer_id</code></td><td>From request body</td></tr>
+          <tr><td><code>items</code></td><td>Array of {product_id, product_name, qty, unit_price, line_total}</td></tr>
+          <tr><td><code>price_total</code></td><td>Sum of all line totals in ₹</td></tr>
+          <tr><td><code>placed_at</code></td><td>datetime.now() at checkout time</td></tr>
+          <tr><td><code>shipping_method</code></td><td>large_item or standard — derived from cart contents</td></tr>
+          <tr><td><code>estimated_delivery</code></td><td>placed_at + 10 days (large_item) or + 5 days (standard)</td></tr>
+          <tr><td><code>status</code></td><td>Derived — never stored. Computed from elapsed minutes on every GET</td></tr>
+          <tr><td><code>cancelled</code></td><td>Boolean flag — the only stored status. Set by A3 or admin Z1</td></tr>
+          <tr><td><code>delivery_address</code></td><td>Customer's default address at time of checkout</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 7. ADMIN PANEL -->
+    <section class="spec-section" id="admin">
+      <div class="spec-section__header">
+        <div class="spec-section__num">7</div>
+        <h2 class="spec-section__title">Admin panel — admin.html</h2>
+      </div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Professional, internal-looking page. Shown in the nav. Polls <code>GET /admin/orders</code> (Z2) every 5 seconds. New checkout orders appear automatically. One status dropdown per order — selecting auto-saves via Z1 immediately with no confirm step.</p>
+
+      <div class="admin-preview" style="margin-bottom:16px;">
+        <div class="admin-header">
+          <div>
+            <div class="admin-header-title">NestKart — Admin Panel</div>
+            <div class="admin-header-sub">Order status management · Demo only</div>
+          </div>
+          <button style="background:#7A2020;color:#fff;border:none;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">Reset Demo</button>
+        </div>
+
+        <div class="admin-customer">Priya Sharma — cust_001 · NY</div>
+        <div class="admin-order">
+          <div class="admin-order-id">ORD-10041</div>
+          <div class="admin-order-items">
+            Linen Cloud Sofa × 1 — ₹89,999<br>
+            Ceramic Vessel Set × 2 — ₹8,400
+          </div>
+          <div class="admin-order-footer">
+            <span class="s-delv">delivered</span>
+            <select class="admin-select">
+              <option>Set status...</option>
+              <option>processing</option>
+              <option>dispatched</option>
+              <option>in_transit</option>
+              <option selected>delivered</option>
+              <option>cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div class="admin-order">
+          <div class="admin-order-id">ORD-10042</div>
+          <div class="admin-order-items">
+            Teak Slab Dining Table × 1 — ₹1,24,000
+          </div>
+          <div class="admin-order-footer">
+            <span class="s-disp">dispatched</span>
+            <select class="admin-select">
+              <option>Set status...</option>
+              <option>processing</option>
+              <option selected>dispatched</option>
+              <option>in_transit</option>
+              <option>delivered</option>
+              <option>cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="admin-customer">James Okafor — cust_002 · CA</div>
+        <div class="admin-order">
+          <div class="admin-order-id">ORD-10051</div>
+          <div class="admin-order-items">
+            Walnut Platform Bed × 1 — ₹68,000<br>
+            Washi Paper Pendant × 1 — ₹8,800
+          </div>
+          <div class="admin-order-footer">
+            <span class="s-proc">processing</span>
+            <select class="admin-select">
+              <option>Set status...</option>
+              <option selected>processing</option>
+              <option>dispatched</option>
+              <option>in_transit</option>
+              <option>delivered</option>
+              <option>cancelled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="note">Admin panel is linked in the nav. It is not password protected — demo context only. The "Reset Demo" button in the top-right calls Z3.</div>
+    </section>
+
+    <!-- 8. RESET DEMO -->
+    <section class="spec-section" id="reset">
+      <div class="spec-section__header">
+        <div class="spec-section__num">8</div>
+        <h2 class="spec-section__title">Reset Demo — what Z3 does</h2>
+      </div>
+      <div class="reset-grid">
+        <div class="reset-col">
+          <div class="reset-col__head reset-col__head--wipe">Wiped on reset</div>
+          <div class="reset-col__item"><code>STATUS_OVERRIDES</code> — cleared. All orders return to auto-progression</div>
+          <div class="reset-col__item"><code>DYNAMIC_RETURNS</code> — cleared. Returns created during demo removed</div>
+          <div class="reset-col__item"><code>CARTS</code> — cleared. All carts emptied</div>
+          <div class="reset-col__item">Checkout orders — any ORD-XXXXX created during the demo session removed</div>
+        </div>
+        <div class="reset-col">
+          <div class="reset-col__head reset-col__head--keep">Preserved on reset</div>
+          <div class="reset-col__item"><code>CUSTOMERS</code> — hardcoded, never touched</div>
+          <div class="reset-col__item"><code>PRODUCTS</code> — hardcoded, never touched</div>
+          <div class="reset-col__item"><code>PAYMENT_METHODS</code> — hardcoded, never touched</div>
+          <div class="reset-col__item">Seed orders (ORD-10041 etc.) — always restored to original state</div>
+          <div class="reset-col__item">Seed returns (RET-2201/02/03) — always preserved</div>
+        </div>
+      </div>
+      <div class="note">Reset = backend returns to exactly how it looked 1 second after the server booted. Safe to run between any two demo sessions without restarting Railway.</div>
+    </section>
+
+    <!-- 9. FRONTEND PAGES -->
+    <section class="spec-section" id="frontend">
+      <div class="spec-section__header">
+        <div class="spec-section__num">9</div>
+        <h2 class="spec-section__title">Frontend pages</h2>
+      </div>
+      <div class="pages-grid">
+
+        <div class="page-card">
+          <div class="page-card__name"><div class="dot-existing"></div>index.html</div>
+          <div class="page-card__body">
+            <div class="page-card__item">New arrivals section fetches from D1</div>
+            <div class="page-card__item">Cart icon count fetches live from E1</div>
+            <div class="page-card__item">Hero image stays — warm sunlit living room</div>
+            <div class="page-card__item">No other structural changes</div>
+          </div>
+        </div>
+
+        <div class="page-card">
+          <div class="page-card__name"><div class="dot-existing"></div>shop.html</div>
+          <div class="page-card__body">
+            <div class="page-card__item">All products fetched from D1 — no more hardcoded HTML cards</div>
+            <div class="page-card__item">Filter tabs hit API with category param</div>
+            <div class="page-card__item">Sort dropdown passes sort param to D1</div>
+            <div class="page-card__item">"Add to Bag" calls E2 with product_id</div>
+            <div class="page-card__item">Stock badges: Low Stock / Out of Stock</div>
+            <div class="page-card__item">Distinct banner image — not same as index.html</div>
+          </div>
+        </div>
+
+        <div class="page-card">
+          <div class="page-card__name"><div class="dot-new"></div>cart.html <span class="badge badge-new" style="margin-left:4px">new</span></div>
+          <div class="page-card__body">
+            <div class="page-card__item">Cart items + quantities from E1</div>
+            <div class="page-card__item">Quantity update calls E3</div>
+            <div class="page-card__item">Remove item calls E4</div>
+            <div class="page-card__item">Subtotal calculated from E1 response</div>
+            <div class="page-card__item">Place Order calls E5 with default address</div>
+            <div class="page-card__item">On success → redirect to orders.html</div>
+          </div>
+        </div>
+
+        <div class="page-card">
+          <div class="page-card__name"><div class="dot-new"></div>orders.html <span class="badge badge-new" style="margin-left:4px">new</span></div>
+          <div class="page-card__body">
+            <div class="page-card__item">Order history from A2</div>
+            <div class="page-card__item">Live status per order from A1</div>
+            <div class="page-card__item">Cancel button shown if status = processing</div>
+            <div class="page-card__item">Reschedule button shown if processing or dispatched</div>
+            <div class="page-card__item">Return button shown if delivered + within 30-day window</div>
+            <div class="page-card__item">All actions handled inline — no separate pages</div>
+          </div>
+        </div>
+
+        <div class="page-card">
+          <div class="page-card__name"><div class="dot-new"></div>admin.html <span class="badge badge-admin" style="margin-left:4px">admin</span></div>
+          <div class="page-card__body">
+            <div class="page-card__item">All orders from Z2, grouped by customer</div>
+            <div class="page-card__item">Polls every 5s — new checkout orders appear automatically</div>
+            <div class="page-card__item">Status dropdown per order — auto-saves on change via Z1</div>
+            <div class="page-card__item">Reset Demo button — calls Z3</div>
+            <div class="page-card__item">Shown in nav. Professional look</div>
+            <div class="page-card__item">No auth required — demo only</div>
+          </div>
+        </div>
+
+        <div class="page-card">
+          <div class="page-card__name"><div class="dot-existing"></div>about / journal / contact</div>
+          <div class="page-card__body">
+            <div class="page-card__item">No functional changes</div>
+            <div class="page-card__item">Each gets a distinct hero image — no two pages share the same photo</div>
+            <div class="page-card__item">about.html → artisan / workshop scene</div>
+            <div class="page-card__item">journal.html → editorial interior</div>
+            <div class="page-card__item">contact.html → warm architectural shot</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="note" style="margin-top:16px;">
+        <code>intercom-init.js</code> requires no changes. <code>customer_id</code> is read from <code>localStorage.getItem('nk_active_user')</code> and passed in every API call. Admin is added to the nav after Contact, labelled "Admin".
+      </div>
+    </section>
+
+    <!-- 10. IMAGES -->
+    <section class="spec-section" id="images">
+      <div class="spec-section__header">
+        <div class="spec-section__num">10</div>
+        <h2 class="spec-section__title">Image standards</h2>
+      </div>
+      <table class="spec-table">
+        <thead><tr><th style="width:200px">Where</th><th style="width:140px">Aspect ratio</th><th>Standard</th></tr></thead>
+        <tbody>
+          <tr><td>Page hero / banner</td><td>Wide landscape</td><td>Each page has a distinct Unsplash photo. Warm, editorial, high quality. No two pages share the same image</td></tr>
+          <tr><td>Product cards</td><td>3:4 portrait</td><td>Clean product-on-neutral-background shots. Consistent across all cards. Already defined in styles.css</td></tr>
+          <tr><td>Journal cards</td><td>3:2 landscape</td><td>Lifestyle / interior shots. Consistent warm tone</td></tr>
+          <tr><td>Story / split sections</td><td>Any, object-fit: cover</td><td>Artisan or interior lifestyle images. Already handled by CSS</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+
+</body>
+</html>
