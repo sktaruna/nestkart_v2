@@ -416,6 +416,11 @@ PRODUCT_REVIEWS = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# STOCK SNAPSHOT — used to restore on /admin/reset
+# ─────────────────────────────────────────────────────────────────────────────
+_ORIGINAL_STOCK = {pid: p["stock"] for pid, p in PRODUCTS.items()}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # FLEXIBLE IN-MEMORY STATE
 # ─────────────────────────────────────────────────────────────────────────────
 ORDERS = {}
@@ -987,6 +992,14 @@ def cancel_order(order_id):
         }), 200
     order["cancelled"] = True
     STATUS_OVERRIDES[order_id] = "cancelled"
+
+    # Restore stock only for orders that went through checkout (not seeded orders)
+    if order.get("stock_decremented"):
+        for item in order.get("items", []):
+            p = PRODUCTS.get(item["product_id"])
+            if p:
+                p["stock"] += item["qty"]
+
     return jsonify({
         "ok": True, "cancelled": True, "order_id": order_id,
         "refund_method": "original_payment_method",
@@ -1110,6 +1123,13 @@ def initiate_return(order_id):
     refund_eta = add_business_days(today, 7)
     free_return = reason in ("damaged_on_arrival", "defective", "wrong_item_received", "item_not_as_described")
     incl_shipping = free_return
+
+    # Restore stock when return is initiated (only if this order decremented it)
+    if order.get("stock_decremented"):
+        for item in order.get("items", []):
+            p = PRODUCTS.get(item["product_id"])
+            if p:
+                p["stock"] += item["qty"]
 
     item_names = ", ".join(i["product_name"] for i in order.get("items", []))
     DYNAMIC_RETURNS[return_id] = {
@@ -1352,10 +1372,16 @@ def add_to_cart(customer_id):
     p = PRODUCTS.get(product_id)
     if not p:
         return err("product_not_found", f"No product found with ID '{product_id}'.", 404)
-    if p["stock"] == 0:
-        return err("out_of_stock", f"'{p['name']}' is currently out of stock.", 400)
     cart = CARTS.setdefault(customer_id, [])
     existing = next((i for i in cart if i["product_id"] == product_id), None)
+    current_cart_qty = existing["qty"] if existing else 0
+    requested_total = current_cart_qty + qty
+    if p["stock"] == 0:
+        return err("out_of_stock", f"'{p['name']}' is currently out of stock.", 400)
+    if p["stock"] < requested_total:
+        return err("insufficient_stock",
+            f"Only {p['stock']} unit(s) of '{p['name']}' available "
+            f"(you already have {current_cart_qty} in your cart).", 400)
     if existing:
         existing["qty"] += qty
         existing["line_total"] = existing["qty"] * existing["unit_price"]
@@ -1387,8 +1413,12 @@ def update_cart(customer_id):
         CARTS[customer_id] = [i for i in cart if i["product_id"] != product_id]
     else:
         p = PRODUCTS.get(product_id)
-        if p and p["stock"] == 0:
-            return err("out_of_stock", f"'{p['name']}' is currently out of stock.", 400)
+        if p:
+            if p["stock"] == 0:
+                return err("out_of_stock", f"'{p['name']}' is currently out of stock.", 400)
+            if p["stock"] < qty:
+                return err("insufficient_stock",
+                    f"Only {p['stock']} unit(s) of '{p['name']}' available.", 400)
         existing = next((i for i in cart if i["product_id"] == product_id), None)
         if existing:
             existing["qty"] = qty
@@ -1416,6 +1446,17 @@ def checkout(customer_id):
     if not cart_items:
         return err("empty_cart", "Cannot checkout with an empty cart.", 400)
 
+    # Validate stock for every item before touching anything
+    for item in cart_items:
+        p = PRODUCTS.get(item["product_id"])
+        if p:
+            if p["stock"] == 0:
+                return err("out_of_stock",
+                    f"'{p['name']}' is out of stock. Please remove it from your cart before checking out.", 400)
+            if p["stock"] < item["qty"]:
+                return err("insufficient_stock",
+                    f"Only {p['stock']} unit(s) of '{p['name']}' available, but {item['qty']} requested.", 400)
+
     has_large = any(PRODUCTS.get(i["product_id"], {}).get("shipping_type") == "large_item" for i in cart_items)
     shipping_method = "large_item" if has_large else "standard"
     delivery_days = 10 if has_large else 5
@@ -1438,7 +1479,15 @@ def checkout(customer_id):
         "cancelled": False,
         "tracking_number": None,
         "fin_note": None,
+        "stock_decremented": True,   # flag so cancel/return know to restore
     }
+
+    # Decrement stock now that the order is confirmed
+    for item in cart_items:
+        p = PRODUCTS.get(item["product_id"])
+        if p:
+            p["stock"] = max(0, p["stock"] - item["qty"])
+
     CARTS[customer_id] = []
 
     return jsonify({
@@ -1487,6 +1536,22 @@ def admin_get_orders():
     return jsonify({"ok": True, "customers": customers_out})
 
 
+@app.route("/admin/products/<product_id>/stock", methods=["POST"])
+def admin_set_stock(product_id):
+    p = PRODUCTS.get(product_id)
+    if not p:
+        return err("product_not_found", f"No product found with ID '{product_id}'.", 404)
+    body = request.get_json(silent=True) or {}
+    stock = body.get("stock")
+    if stock is None or not isinstance(stock, int) or stock < 0:
+        return err("invalid_stock", "Field 'stock' must be a non-negative integer.", 400)
+    p["stock"] = stock
+    return jsonify({
+        "ok": True, "product_id": product_id, "name": p["name"],
+        "stock": stock, "stock_status": derive_stock_status(stock),
+    })
+
+
 @app.route("/admin/reset", methods=["POST"])
 def admin_reset():
     global ORDERS, STATUS_OVERRIDES, DYNAMIC_RETURNS, CARTS
@@ -1499,6 +1564,10 @@ def admin_reset():
     CARTS.clear()
     _order_counter[0] = 10200
     _return_counter[0] = 2210
+    # Restore all product stocks to original seeded values
+    for pid, original_stock in _ORIGINAL_STOCK.items():
+        if pid in PRODUCTS:
+            PRODUCTS[pid]["stock"] = original_stock
     _seed_orders()
     return jsonify({"ok": True, "message": "Demo reset complete. All seed orders refreshed."})
 
