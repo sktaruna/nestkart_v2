@@ -230,7 +230,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 7,
         "shipping_type": "standard",
-        "image_url": "https://images.unsplash.com/photo-CsLnGolUDxQ?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/29559655/pexels-photo-29559655.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": None,
         "description": "A tall floor lamp with a hand-wrapped jute shade that casts the warmest evening glow."
     },
@@ -242,7 +242,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 15,
         "shipping_type": "standard",
-        "image_url": "https://images.unsplash.com/photo-JT3W6P1mYtU?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/4611612/pexels-photo-4611612.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": None,
         "description": "A trio of wheel-thrown ceramic vessels in matte sand — beautiful empty, even better with dried stems."
     },
@@ -254,7 +254,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 6,
         "shipping_type": "large_item",
-        "image_url": "https://images.unsplash.com/photo-HUp2do6hH2o?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/6312360/pexels-photo-6312360.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": None,
         "description": "Paired dining chairs in natural linen with oak frames — understated, refined, built for gathering."
     },
@@ -266,7 +266,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 9,
         "shipping_type": "standard",
-        "image_url": "https://images.unsplash.com/photo-BZUAp9J0_5g?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/698907/pexels-photo-698907.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": "New",
         "description": "A Japanese washi paper pendant that diffuses light beautifully — lightweight, sculptural, serene."
     },
@@ -278,7 +278,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 3,
         "shipping_type": "standard",
-        "image_url": "https://images.unsplash.com/photo-7pN6LNmo5dM?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/12199846/pexels-photo-12199846.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": "New",
         "description": "Handwoven by artisans in Rajasthan — dense wool pile in warm, earthy tones that anchor any room."
     },
@@ -290,7 +290,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 20,
         "shipping_type": "standard",
-        "image_url": "https://images.unsplash.com/photo-xk-nHseH344?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/9707245/pexels-photo-9707245.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": None,
         "description": "Three hand-thrown terracotta planters in graduated sizes — classic, breathable, effortlessly pretty."
     },
@@ -302,7 +302,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 0,
         "shipping_type": "large_item",
-        "image_url": "https://images.unsplash.com/photo-kN6JmRKF2js?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/2883049/pexels-photo-2883049.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": None,
         "description": "A solid sheesham bookshelf with open shelving and a lower cabinet — sturdy, honest, beautiful."
     },
@@ -314,7 +314,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 1,
         "shipping_type": "standard",
-        "image_url": "https://images.unsplash.com/photo-dN0f5oGLPr0?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/4577650/pexels-photo-4577650.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": None,
         "description": "A slender brass table lamp with a linen drum shade — warm, timeless, and endlessly versatile."
     },
@@ -326,7 +326,7 @@ PRODUCTS = {
         "original_price": None,
         "stock": 8,
         "shipping_type": "standard",
-        "image_url": "https://images.unsplash.com/photo-yX1RlZpC8ZU?w=700&q=80",
+        "image_url": "https://images.pexels.com/photos/11112739/pexels-photo-11112739.jpeg?auto=compress&cs=tinysrgb&w=700",
         "badge": "New",
         "description": "A compact round side table in solid mango wood with a natural finish — the perfect companion piece."
     },
