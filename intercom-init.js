@@ -33,36 +33,44 @@
 
   // ── 3. BOOT / REBOOT INTERCOM ──────────────────────────────────────────────
 
-  function bootIntercom(userId) {
+  function bootIntercom(userId, isSwitch) {
     var customer = CUSTOMERS[userId];
     if (!customer) return;
 
-    // Shut down any existing session first (important when switching users)
-    if (window.Intercom) {
-      window.Intercom("shutdown");
-    }
-
-    window.intercomSettings = {
+    var settings = {
       app_id:  APP_ID,
       user_id: userId,
       name:    customer.name,
       email:   customer.email,
     };
 
-    // Load the Intercom widget script if not already present
-    if (!document.getElementById("intercom-script")) {
-      var s = document.createElement("script");
-      s.id   = "intercom-script";
-      s.type = "text/javascript";
-      s.async = true;
-      s.src  = "https://widget.intercom.io/widget/" + APP_ID;
-      document.body.appendChild(s);
+    function doBoot() {
+      window.intercomSettings = settings;
+      // Load the Intercom widget script if not already present
+      if (!document.getElementById("intercom-script")) {
+        var s = document.createElement("script");
+        s.id   = "intercom-script";
+        s.type = "text/javascript";
+        s.async = true;
+        s.src  = "https://widget.intercom.io/widget/" + APP_ID;
+        document.body.appendChild(s);
+        s.onload = function () {
+          window.Intercom("boot", settings);
+        };
+      } else {
+        window.Intercom("boot", settings);
+      }
+    }
 
-      s.onload = function () {
-        window.Intercom("boot", window.intercomSettings);
-      };
+    if (window.Intercom) {
+      window.Intercom("shutdown");
+      // Give Intercom time to fully clear the session before booting new user.
+      // Without this delay, boot can fire before shutdown completes, causing
+      // old conversation history to bleed into the new session.
+      // Only needed on explicit user switches, not on initial page load.
+      setTimeout(doBoot, isSwitch ? 300 : 0);
     } else {
-      window.Intercom("boot", window.intercomSettings);
+      doBoot();
     }
   }
 
@@ -122,7 +130,7 @@
       var newId = e.target.value;
       setActiveUser(newId);
       updateInfoPanel(newId);
-      bootIntercom(newId);
+      bootIntercom(newId, true);
     });
   }
 
