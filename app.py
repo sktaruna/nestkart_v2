@@ -50,7 +50,7 @@ def serve_index():
 
 @app.route('/<path:filename>')
 def serve_static(filename):
-    if '.' in filename and not filename.startswith('api') and not filename.startswith('admin'):
+    if '.' in filename and not filename.startswith('api') and not filename.startswith('admin/'):
         return send_from_directory('.', filename)
     return jsonify({"error": "not_found"}), 404
 
