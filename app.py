@@ -34,7 +34,8 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
-
+from canvas import canvas_bp
+app.register_blueprint(canvas_bp)
 # ─────────────────────────────────────────────────────────────────────────────
 # AUTH CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
