@@ -1577,7 +1577,7 @@ def admin_reset():
 # ─────────────────────────────────────────────────────────────────────────────
 # CANVAS KIT — RESCHEDULE DELIVERY (Messenger Home)
 # ─────────────────────────────────────────────────────────────────────────────
-import calendar as _cal
+import calendar
 
 def _fmt_date(iso: str) -> str:
     """'2025-07-01' → 'Tue, 1 Jul'"""
@@ -1716,8 +1716,8 @@ def _canvas_order_list(eligible_orders: list) -> dict:
             "style": "muted",
         })
         # Tap to select this order
-        # Component IDs must be alphanumeric+underscore — sanitise the order ID
-        safe_order_id = order_id.replace("-", "_")
+        # Component IDs must be lowercase alphanumeric+underscore
+        safe_order_id = order_id.replace("-", "_").lower()
         components.append({
             "type": "button",
             "id": f"select_order_{safe_order_id}",
@@ -2044,7 +2044,9 @@ def messenger_submit():
     # ── Order selected: show calendar ─────────────────────────────────────────
     if component_id.startswith("select_order_"):
         # Reverse the sanitisation: underscores back to hyphens for the order ID
-        order_id = component_id[len("select_order_"):].replace("_", "-", 1)
+        # Reverse: lowercase "ord_10103" → uppercase "ORD-10103"
+        raw = component_id[len("select_order_"):]          # e.g. "ord_10103"
+        order_id = raw.upper().replace("_", "-", 1)        # e.g. "ORD-10103"
         if order_id not in ORDERS:
             return jsonify(_canvas_error(f"Order {order_id} was not found."))
         slots = weekday_slots()
