@@ -184,9 +184,10 @@ def _canvas_order_list(eligible_orders: list) -> dict:
         {"type": "divider"},
     ]
 
+    _a = _app()
     for order in eligible_orders:
         order_id = order["order_id"]
-        status   = get_order_status(order)
+        status   = _a.get_order_status(order)
         summary  = _item_summary(order["items"])
         total    = _fmt_inr(order["price_total"])
         est_del  = _fmt_date(order["estimated_delivery"])
