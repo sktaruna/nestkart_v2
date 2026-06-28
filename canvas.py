@@ -204,9 +204,11 @@ def _canvas_order_list(eligible_orders: list) -> dict:
             "style": "muted",
         })
         # Tap to select this order
+        # Component IDs must be alphanumeric+underscore — sanitise the order ID
+        safe_order_id = order_id.replace("-", "_")
         components.append({
             "type": "button",
-            "id": f"select_order_{order_id}",
+            "id": f"select_order_{safe_order_id}",
             "label": f"Choose this order",
             "style": "secondary",
             "action": {"type": "submit"},
@@ -532,7 +534,8 @@ def messenger_submit():
 
     # ── Order selected: show calendar ─────────────────────────────────────────
     if component_id.startswith("select_order_"):
-        order_id = component_id[len("select_order_"):]
+        # Reverse the sanitisation: underscores back to hyphens for the order ID
+        order_id = component_id[len("select_order_"):].replace("_", "-", 1)
         if order_id not in app.ORDERS:
             return jsonify(_canvas_error(f"Order {order_id} was not found."))
         slots = app.weekday_slots()
