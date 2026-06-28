@@ -1776,36 +1776,17 @@ def _canvas_no_orders() -> dict:
 
 def _canvas_calendar(order_id: str, available_slots: list) -> dict:
     """
-    Screen 3 — Calendar grid for the current month.
-
-    Renders a 7-column (Mon–Sun) grid as a DataTable.
-    Available slots are shown as tappable buttons.
-    Past / weekend / unavailable dates show as muted plain text.
-    The customer taps an available date → triggers submit with component_id = "slot_<date>".
+    Screen 3 — Available delivery date slots as buttons.
+    One button per available weekday slot, grouped by week.
     """
-    order    = ORDERS[order_id]
-    est_del  = _fmt_date_long(order["estimated_delivery"])
-    summary  = _item_summary(order["items"])
+    order   = ORDERS[order_id]
+    est_del = _fmt_date_long(order["estimated_delivery"])
+    summary = _item_summary(order["items"])
 
-    slot_set = set(available_slots)
-
-    # ── Build calendar grid ───────────────────────────────────────────────────
-    today    = date.today()
-    # Use the month of the first available slot (could be next month if today is late)
-    first_slot = date.fromisoformat(available_slots[0]) if available_slots else today
-    year, month = first_slot.year, first_slot.month
-
-    # Calendar grid: list of weeks, each week = 7 days (Mon=0 … Sun=6)
-    # calendar.monthcalendar returns rows of [Mon..Sun]; 0 = not in this month
-    cal_weeks = calendar.monthcalendar(year, month)
-
-    month_label = date(year, month, 1).strftime("%B %Y")   # e.g. "July 2025"
-
-    # ── Components ───────────────────────────────────────────────────────────
     components = [
         {
             "type": "text",
-            "text": f"Reschedule delivery — {order_id}",
+            "text": f"Reschedule — {order_id}",
             "style": "header",
         },
         {
@@ -1816,93 +1797,28 @@ def _canvas_calendar(order_id: str, available_slots: list) -> dict:
         {"type": "divider"},
         {
             "type": "text",
-            "text": f"*{month_label}* — tap an available date",
+            "text": "Pick a new delivery date",
             "style": "paragraph",
         },
     ]
 
-    # ── Day-header row ────────────────────────────────────────────────────────
-    # Canvas Kit DataTable: columns defined as list of header strings,
-    # rows as list of lists (one cell per column).
-    DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-
-    rows = []
-    for week in cal_weeks:
-        row = []
-        for col_idx, day_num in enumerate(week):
-            if day_num == 0:
-                # Outside this month — blank cell
-                row.append({"type": "text", "text": " "})
-                continue
-
-            cell_date = date(year, month, day_num)
-            iso       = cell_date.isoformat()
-            day_str   = str(day_num)
-
-            if iso in slot_set:
-                # ✅ Available — render as a tappable button
-                row.append({
-                    "type": "button",
-                    "id": f"slot_{iso}",
-                    "label": day_str,
-                    "style": "primary",
-                    "action": {"type": "submit"},
-                })
-            elif col_idx >= 5:
-                # Weekend — muted
-                row.append({
-                    "type": "text",
-                    "text": day_str,
-                    "style": "muted",
-                    "align": "center",
-                })
-            elif cell_date <= today:
-                # Past date — muted
-                row.append({
-                    "type": "text",
-                    "text": day_str,
-                    "style": "muted",
-                    "align": "center",
-                })
-            else:
-                # Future weekday but not a slot (outside the 14-day window) — grey
-                row.append({
-                    "type": "text",
-                    "text": day_str,
-                    "style": "muted",
-                    "align": "center",
-                })
-        rows.append(row)
-
-    components.append({
-        "type": "data-table",
-        "items": {
-            "type": "attribute-list",
-            "items": [
-                {
-                    "type": "row",
-                    # Column headers
-                    "items": [
-                        {"type": "text", "text": h, "style": "muted", "align": "center"}
-                        for h in DAY_HEADERS
-                    ],
-                }
-            ]
-            + [
-                {
-                    "type": "row",
-                    "items": row,
-                }
-                for row in rows
-            ],
-        },
-    })
+    # Render each available slot as a full-width button
+    for slot_iso in available_slots:
+        d = date.fromisoformat(slot_iso)
+        label = d.strftime("%A, %-d %B")  # e.g. "Monday, 30 June"
+        components.append({
+            "type": "button",
+            "id": f"slot_{slot_iso}",
+            "label": label,
+            "style": "secondary",
+            "action": {"type": "submit"},
+        })
 
     components += [
         {"type": "spacer", "size": "s"},
         {
             "type": "text",
-            "text": "Highlighted dates are available for delivery. Weekends are not available.",
+            "text": "Only weekday deliveries are available.",
             "style": "muted",
         },
     ]
