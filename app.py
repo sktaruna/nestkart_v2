@@ -1575,26 +1575,24 @@ def admin_reset():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CANVAS KIT — RESCHEDULE DELIVERY (Messenger Home)
+# CANVAS KIT — MANAGE MY ORDER (Messenger Home)
+# Actions: Reschedule · Return · Cancel
 # ─────────────────────────────────────────────────────────────────────────────
-import calendar
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _fmt_date(iso: str) -> str:
-    """'2025-07-01' → 'Tue, 1 Jul'"""
     d = date.fromisoformat(iso)
-    return d.strftime("%-d %b").lstrip("0")  # e.g. "1 Jul"
+    return d.strftime("%-d %b")
 
 def _fmt_date_long(iso: str) -> str:
-    """'2025-07-01' → 'Tuesday, 1 July 2025'"""
     d = date.fromisoformat(iso)
     return d.strftime("%A, %-d %B %Y")
 
 def _item_summary(items: list) -> str:
-    """[{product_name, qty}, ...] → 'Linen Cloud Sofa × 1, Ceramic Vessel Set × 2'"""
     return ", ".join(f"{i['product_name']} × {i['qty']}" for i in items)
 
 def _fmt_inr(amount) -> str:
-    """89999 → '₹89,999'"""
     s = str(int(amount))
     if len(s) <= 3:
         return f"₹{s}"
@@ -1606,71 +1604,67 @@ def _fmt_inr(amount) -> str:
     return f"₹{result}"
 
 def _get_customer_id(payload: dict) -> str | None:
-    """
-    Extract customer_id from Intercom payload.
-    Confirmed from logs:
-      - submit payloads:     payload["customer"]["user_id"]     e.g. "cust_005"
-      - initialize payloads: payload["contact"]["external_id"]  e.g. "cust_001"
-    """
-    # submit shape (primary — confirmed in logs)
     customer = payload.get("customer") or {}
     uid = customer.get("user_id") or customer.get("external_id")
     if uid:
         return uid
-    # initialize / contact shape (confirmed in logs)
     contact = payload.get("contact") or {}
     return contact.get("external_id") or contact.get("user_id")
 
-def _reschedule_eligible_orders(customer_id: str) -> list:
-    """Return orders for customer that can be rescheduled (processing or dispatched)."""
+def _safe_id(order_id: str) -> str:
+    """ORD-10103 → ord_10103 (safe for Canvas component IDs)"""
+    return order_id.replace("-", "_").lower()
+
+def _restore_id(safe: str) -> str:
+    """ord_10103 → ORD-10103"""
+    return safe.upper().replace("_", "-", 1)
+
+def _cancel_eligible(customer_id: str) -> list:
     eligible = []
     for order in ORDERS.values():
         if order["customer_id"] != customer_id:
             continue
-        status = get_order_status(order)
-        if status in ("processing", "dispatched"):
+        if get_order_status(order) == "processing":
             eligible.append(order)
-    # Most recent first
     eligible.sort(key=lambda o: o["placed_at"], reverse=True)
     return eligible
 
+def _reschedule_eligible(customer_id: str) -> list:
+    eligible = []
+    for order in ORDERS.values():
+        if order["customer_id"] != customer_id:
+            continue
+        if get_order_status(order) in ("processing", "dispatched"):
+            eligible.append(order)
+    eligible.sort(key=lambda o: o["placed_at"], reverse=True)
+    return eligible
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CANVAS BUILDERS
-# ─────────────────────────────────────────────────────────────────────────────
+def _return_eligible(customer_id: str) -> list:
+    eligible = []
+    for order in ORDERS.values():
+        if order["customer_id"] != customer_id:
+            continue
+        elig = _return_eligibility_check(order["order_id"])
+        if elig.get("eligible"):
+            eligible.append(order)
+    eligible.sort(key=lambda o: o["placed_at"], reverse=True)
+    return eligible
+
+# ── Screen builders ───────────────────────────────────────────────────────────
 
 def _canvas_home() -> dict:
-    """
-    Screen 1 — Messenger Home landing card.
-    Shows the NestKart wordmark, a short line, and one CTA button.
-    """
     return {
         "canvas": {
             "content": {
                 "components": [
-                    # ── Header ──────────────────────────────────────────────
-                    {
-                        "type": "text",
-                        "text": "NestKart",
-                        "style": "header",
-                        "align": "center",
-                    },
-                    {
-                        "type": "text",
-                        "text": "Need to change your delivery date?",
-                        "style": "paragraph",
-                        "align": "center",
-                    },
-                    # ── Divider ─────────────────────────────────────────────
+                    {"type": "text", "text": "NestKart", "style": "header", "align": "center"},
+                    {"type": "text", "text": "How can we help with your order?", "style": "paragraph", "align": "center"},
                     {"type": "divider"},
-                    # ── CTA button ──────────────────────────────────────────
-                    {
-                        "type": "button",
-                        "id": "start_reschedule",
-                        "label": "Reschedule a Delivery →",
-                        "style": "primary",
-                        "action": {"type": "submit"},
-                    },
+                    {"type": "button", "id": "start_reschedule", "label": "📦  Reschedule a Delivery", "style": "primary", "action": {"type": "submit"}},
+                    {"type": "spacer", "size": "xs"},
+                    {"type": "button", "id": "start_return", "label": "↩️  Return an Item", "style": "secondary", "action": {"type": "submit"}},
+                    {"type": "spacer", "size": "xs"},
+                    {"type": "button", "id": "start_cancel", "label": "✕  Cancel an Order", "style": "secondary", "action": {"type": "submit"}},
                 ]
             },
             "stored_data": {"screen": "home"},
@@ -1678,50 +1672,32 @@ def _canvas_home() -> dict:
     }
 
 
-def _canvas_order_list(eligible_orders: list) -> dict:
-    """
-    Screen 2a — List of orders eligible for rescheduling.
-    Each order rendered as a button the customer taps to pick.
-    """
+def _canvas_order_picker(eligible_orders: list, action: str) -> dict:
+    """Generic order picker for any action."""
+    ACTION_LABELS = {
+        "reschedule": ("Select an order to reschedule", "These orders are eligible for a new delivery date."),
+        "cancel":     ("Select an order to cancel",     "These orders can still be cancelled."),
+        "return":     ("Select an order to return",      "These orders are within the 30-day return window."),
+    }
+    header, sub = ACTION_LABELS.get(action, ("Select an order", ""))
+
     components = [
-        {
-            "type": "text",
-            "text": "Select an order to reschedule",
-            "style": "header",
-        },
-        {
-            "type": "text",
-            "text": "These orders are eligible for a new delivery date.",
-            "style": "muted",
-        },
+        {"type": "text", "text": header, "style": "header"},
+        {"type": "text", "text": sub, "style": "muted"},
         {"type": "divider"},
     ]
 
     for order in eligible_orders:
-        order_id = order["order_id"]
-        status   = get_order_status(order)
-        summary  = _item_summary(order["items"])
-        total    = _fmt_inr(order["price_total"])
-        est_del  = _fmt_date(order["estimated_delivery"])
-
-        # Order detail text block
-        components.append({
-            "type": "text",
-            "text": f"*{order_id}*  ·  {status.replace('_', ' ').title()}",
-            "style": "paragraph",
-        })
-        components.append({
-            "type": "text",
-            "text": f"{summary}\n{total}  ·  Est. {est_del}",
-            "style": "muted",
-        })
-        # Tap to select this order
-        # Component IDs must be lowercase alphanumeric+underscore
-        safe_order_id = order_id.replace("-", "_").lower()
+        status  = get_order_status(order)
+        summary = _item_summary(order["items"])
+        total   = _fmt_inr(order["price_total"])
+        est_del = _fmt_date(order["estimated_delivery"])
+        components.append({"type": "text", "text": f"*{order['order_id']}*  ·  {status.replace('_',' ').title()}", "style": "paragraph"})
+        components.append({"type": "text", "text": f"{summary}\n{total}  ·  Est. {est_del}", "style": "muted"})
         components.append({
             "type": "button",
-            "id": f"select_order_{safe_order_id}",
-            "label": f"Choose this order",
+            "id": f"pick_{action}_{_safe_id(order['order_id'])}",
+            "label": "Choose this order",
             "style": "secondary",
             "action": {"type": "submit"},
         })
@@ -1730,43 +1706,27 @@ def _canvas_order_list(eligible_orders: list) -> dict:
     return {
         "canvas": {
             "content": {"components": components},
-            "stored_data": {"screen": "order_list"},
+            "stored_data": {"screen": "order_picker", "action": action},
         }
     }
 
 
-def _canvas_no_orders() -> dict:
-    """Screen 2b — No eligible orders."""
+def _canvas_no_eligible(action: str) -> dict:
+    MESSAGES = {
+        "reschedule": ("No orders to reschedule", "Only orders being processed or dispatched are eligible."),
+        "cancel":     ("No orders to cancel",      "Only orders still being processed can be cancelled."),
+        "return":     ("No orders to return",       "Only delivered orders within the 30-day window are eligible."),
+    }
+    header, body = MESSAGES.get(action, ("No eligible orders", ""))
     return {
         "canvas": {
             "content": {
                 "components": [
-                    {
-                        "type": "text",
-                        "text": "No orders to reschedule",
-                        "style": "header",
-                    },
-                    {
-                        "type": "text",
-                        "text": (
-                            "You don't have any orders that can be rescheduled right now. "
-                            "Only orders that are being processed or dispatched are eligible."
-                        ),
-                        "style": "paragraph",
-                    },
+                    {"type": "text", "text": header, "style": "header"},
+                    {"type": "text", "text": body, "style": "paragraph"},
                     {"type": "divider"},
-                    {
-                        "type": "text",
-                        "text": "Need help with something else? Our team is here Mon–Sat, 9 am–7 pm IST.",
-                        "style": "muted",
-                    },
-                    {
-                        "type": "button",
-                        "id": "done_no_orders",
-                        "label": "Done",
-                        "style": "secondary",
-                        "action": {"type": "submit"},
-                    },
+                    {"type": "text", "text": "Need help? Our team is here Mon–Sat, 9 am–7 pm IST.", "style": "muted"},
+                    {"type": "button", "id": "done_no_orders", "label": "Done", "style": "secondary", "action": {"type": "submit"}},
                 ]
             },
             "stored_data": {"screen": "no_orders"},
@@ -1774,38 +1734,21 @@ def _canvas_no_orders() -> dict:
     }
 
 
-def _canvas_calendar(order_id: str, available_slots: list) -> dict:
-    """
-    Screen 3 — Available delivery date slots as buttons.
-    One button per available weekday slot, grouped by week.
-    """
+# ── RESCHEDULE screens ────────────────────────────────────────────────────────
+
+def _canvas_date_picker(order_id: str, slots: list) -> dict:
     order   = ORDERS[order_id]
     est_del = _fmt_date_long(order["estimated_delivery"])
     summary = _item_summary(order["items"])
-
     components = [
-        {
-            "type": "text",
-            "text": f"Reschedule — {order_id}",
-            "style": "header",
-        },
-        {
-            "type": "text",
-            "text": f"{summary}\nCurrently due: {est_del}",
-            "style": "muted",
-        },
+        {"type": "text", "text": f"Reschedule — {order_id}", "style": "header"},
+        {"type": "text", "text": f"{summary}\nCurrently due: {est_del}", "style": "muted"},
         {"type": "divider"},
-        {
-            "type": "text",
-            "text": "Pick a new delivery date",
-            "style": "paragraph",
-        },
+        {"type": "text", "text": "Pick a new delivery date", "style": "paragraph"},
     ]
-
-    # Render each available slot as a full-width button
-    for slot_iso in available_slots:
+    for slot_iso in slots:
         d = date.fromisoformat(slot_iso)
-        label = d.strftime("%A, %-d %B")  # e.g. "Monday, 30 June"
+        label = d.strftime("%A, %-d %B")
         components.append({
             "type": "button",
             "id": f"slot_{slot_iso}",
@@ -1813,105 +1756,217 @@ def _canvas_calendar(order_id: str, available_slots: list) -> dict:
             "style": "secondary",
             "action": {"type": "submit"},
         })
-
     components += [
         {"type": "spacer", "size": "s"},
-        {
-            "type": "text",
-            "text": "Only weekday deliveries are available.",
-            "style": "muted",
-        },
+        {"type": "text", "text": "Weekday deliveries only.", "style": "muted"},
     ]
-
     return {
         "canvas": {
             "content": {"components": components},
-            "stored_data": {
-                "screen": "calendar",
-                "order_id": order_id,
-                "slots": available_slots,
-            },
+            "stored_data": {"screen": "date_picker", "action": "reschedule", "order_id": order_id, "slots": slots},
         }
     }
 
 
-def _canvas_confirmation(order_id: str, new_date_iso: str) -> dict:
-    """Screen 4 — Reschedule confirmed."""
+def _canvas_reschedule_done(order_id: str, new_date: str) -> dict:
     return {
         "canvas": {
             "content": {
                 "components": [
-                    {
-                        "type": "text",
-                        "text": "Delivery rescheduled ✓",
-                        "style": "header",
-                        "align": "center",
-                    },
-                    {
-                        "type": "text",
-                        "text": f"Order *{order_id}* is now scheduled for",
-                        "style": "paragraph",
-                        "align": "center",
-                    },
-                    {
-                        "type": "text",
-                        "text": _fmt_date_long(new_date_iso),
-                        "style": "header",
-                        "align": "center",
-                    },
+                    {"type": "text", "text": "Delivery rescheduled ✓", "style": "header", "align": "center"},
+                    {"type": "text", "text": f"Order *{order_id}* is now scheduled for", "style": "paragraph", "align": "center"},
+                    {"type": "text", "text": _fmt_date_long(new_date), "style": "header", "align": "center"},
                     {"type": "divider"},
-                    {
-                        "type": "text",
-                        "text": (
-                            "You'll receive a confirmation message shortly. "
-                            "If you need to make any other changes, contact us at "
-                            "orders@nestkart.in or call +91 90012 34567."
-                        ),
-                        "style": "muted",
-                    },
-                    {
-                        "type": "button",
-                        "id": "done_confirmed",
-                        "label": "Done",
-                        "style": "primary",
-                        "action": {"type": "submit"},
-                    },
+                    {"type": "text", "text": "You'll receive a confirmation shortly. Questions? Email orders@nestkart.in or call +91 90012 34567.", "style": "muted"},
+                    {"type": "button", "id": "done_confirmed", "label": "Done", "style": "primary", "action": {"type": "submit"}},
                 ]
             },
-            "stored_data": {"screen": "confirmed"},
+            "stored_data": {"screen": "done"},
         },
         "event": {"type": "completed"},
     }
 
 
-def _canvas_error(message: str) -> dict:
-    """Generic error screen."""
+# ── CANCEL screens ────────────────────────────────────────────────────────────
+
+CANCEL_REASONS = [
+    ("changed_my_mind",    "Changed my mind"),
+    ("ordered_by_mistake", "Ordered by mistake"),
+    ("found_better_price", "Found a better price"),
+    ("delivery_too_slow",  "Delivery is too slow"),
+    ("other",              "Other"),
+]
+
+def _canvas_cancel_reason(order_id: str) -> dict:
+    order   = ORDERS[order_id]
+    summary = _item_summary(order["items"])
+    total   = _fmt_inr(order["price_total"])
+    components = [
+        {"type": "text", "text": f"Cancel — {order_id}", "style": "header"},
+        {"type": "text", "text": f"{summary}  ·  {total}", "style": "muted"},
+        {"type": "divider"},
+        {"type": "text", "text": "Why do you want to cancel?", "style": "paragraph"},
+    ]
+    for value, label in CANCEL_REASONS:
+        components.append({
+            "type": "button",
+            "id": f"cancel_reason_{value}",
+            "label": label,
+            "style": "secondary",
+            "action": {"type": "submit"},
+        })
+    return {
+        "canvas": {
+            "content": {"components": components},
+            "stored_data": {"screen": "cancel_reason", "action": "cancel", "order_id": order_id},
+        }
+    }
+
+
+def _canvas_cancel_done(order_id: str) -> dict:
     return {
         "canvas": {
             "content": {
                 "components": [
-                    {
-                        "type": "text",
-                        "text": "Something went wrong",
-                        "style": "header",
-                    },
-                    {
-                        "type": "text",
-                        "text": message,
-                        "style": "paragraph",
-                    },
-                    {
-                        "type": "text",
-                        "text": "Please try again or contact us at orders@nestkart.in.",
-                        "style": "muted",
-                    },
-                    {
-                        "type": "button",
-                        "id": "error_retry",
-                        "label": "Start over",
-                        "style": "secondary",
-                        "action": {"type": "submit"},
-                    },
+                    {"type": "text", "text": "Order cancelled ✓", "style": "header", "align": "center"},
+                    {"type": "text", "text": f"Order *{order_id}* has been cancelled.", "style": "paragraph", "align": "center"},
+                    {"type": "divider"},
+                    {"type": "text", "text": "Your refund will be processed in 5–7 business days, plus 2–5 days for your bank to post it.", "style": "muted"},
+                    {"type": "button", "id": "done_confirmed", "label": "Done", "style": "primary", "action": {"type": "submit"}},
+                ]
+            },
+            "stored_data": {"screen": "done"},
+        },
+        "event": {"type": "completed"},
+    }
+
+
+# ── RETURN screens ────────────────────────────────────────────────────────────
+
+RETURN_REASONS = [
+    ("change_of_mind",        "Changed my mind"),
+    ("item_not_as_described", "Item not as described"),
+    ("damaged_on_arrival",    "Damaged on arrival"),
+    ("defective",             "Defective / not working"),
+    ("wrong_item_received",   "Wrong item received"),
+]
+
+RETURN_CONDITIONS = [
+    ("unused",    "Unused / unopened"),
+    ("opened",    "Opened but not used"),
+    ("assembled", "Assembled / used"),
+]
+
+def _canvas_return_reason(order_id: str) -> dict:
+    order   = ORDERS[order_id]
+    summary = _item_summary(order["items"])
+    total   = _fmt_inr(order["price_total"])
+    components = [
+        {"type": "text", "text": f"Return — {order_id}", "style": "header"},
+        {"type": "text", "text": f"{summary}  ·  {total}", "style": "muted"},
+        {"type": "divider"},
+        {"type": "text", "text": "Why are you returning this?", "style": "paragraph"},
+    ]
+    for value, label in RETURN_REASONS:
+        components.append({
+            "type": "button",
+            "id": f"return_reason_{value}",
+            "label": label,
+            "style": "secondary",
+            "action": {"type": "submit"},
+        })
+    return {
+        "canvas": {
+            "content": {"components": components},
+            "stored_data": {"screen": "return_reason", "action": "return", "order_id": order_id},
+        }
+    }
+
+
+def _canvas_return_condition(order_id: str, reason: str) -> dict:
+    components = [
+        {"type": "text", "text": "Item condition", "style": "header"},
+        {"type": "text", "text": "What is the current condition of the item?", "style": "paragraph"},
+        {"type": "divider"},
+    ]
+    for value, label in RETURN_CONDITIONS:
+        components.append({
+            "type": "button",
+            "id": f"return_condition_{value}",
+            "label": label,
+            "style": "secondary",
+            "action": {"type": "submit"},
+        })
+    return {
+        "canvas": {
+            "content": {"components": components},
+            "stored_data": {"screen": "return_condition", "action": "return", "order_id": order_id, "reason": reason},
+        }
+    }
+
+
+def _canvas_return_packaging(order_id: str, reason: str, condition: str) -> dict:
+    components = [
+        {"type": "text", "text": "Original packaging", "style": "header"},
+        {"type": "text", "text": "Do you have the original packaging?", "style": "paragraph"},
+        {"type": "divider"},
+        {"type": "button", "id": "return_pkg_yes", "label": "Yes, I have the original packaging", "style": "secondary", "action": {"type": "submit"}},
+        {"type": "spacer", "size": "xs"},
+        {"type": "button", "id": "return_pkg_no", "label": "No, I don't have it", "style": "secondary", "action": {"type": "submit"}},
+    ]
+    return {
+        "canvas": {
+            "content": {"components": components},
+            "stored_data": {"screen": "return_packaging", "action": "return", "order_id": order_id, "reason": reason, "condition": condition},
+        }
+    }
+
+
+def _canvas_return_done(order_id: str, return_id: str, refund_amount: str, estimated_date: str) -> dict:
+    return {
+        "canvas": {
+            "content": {
+                "components": [
+                    {"type": "text", "text": "Return initiated ✓", "style": "header", "align": "center"},
+                    {"type": "text", "text": f"Return *{return_id}* has been raised for order *{order_id}*.", "style": "paragraph", "align": "center"},
+                    {"type": "divider"},
+                    {"type": "text", "text": f"Your refund of *{refund_amount}* will be processed in 2–5 business days once we receive the item.", "style": "muted"},
+                    {"type": "text", "text": "Repack the item securely and drop it off at any Delhivery or Blue Dart location within 14 days.", "style": "muted"},
+                    {"type": "button", "id": "done_confirmed", "label": "Done", "style": "primary", "action": {"type": "submit"}},
+                ]
+            },
+            "stored_data": {"screen": "done"},
+        },
+        "event": {"type": "completed"},
+    }
+
+
+def _canvas_return_ineligible(reason: str) -> dict:
+    return {
+        "canvas": {
+            "content": {
+                "components": [
+                    {"type": "text", "text": "Return not eligible", "style": "header"},
+                    {"type": "text", "text": reason, "style": "paragraph"},
+                    {"type": "divider"},
+                    {"type": "text", "text": "Please use the chat below to speak with our support team — they'll be happy to help.", "style": "muted"},
+                    {"type": "button", "id": "done_confirmed", "label": "Chat with us", "style": "primary", "action": {"type": "submit"}},
+                ]
+            },
+            "stored_data": {"screen": "done"},
+        }
+    }
+
+
+def _canvas_error(message: str) -> dict:
+    return {
+        "canvas": {
+            "content": {
+                "components": [
+                    {"type": "text", "text": "Something went wrong", "style": "header"},
+                    {"type": "text", "text": message, "style": "paragraph"},
+                    {"type": "text", "text": "Please try again or contact us at orders@nestkart.in.", "style": "muted"},
+                    {"type": "button", "id": "error_retry", "label": "Start over", "style": "secondary", "action": {"type": "submit"}},
                 ]
             },
             "stored_data": {"screen": "error"},
@@ -1919,85 +1974,160 @@ def _canvas_error(message: str) -> dict:
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ROUTES
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/messenger/initialize", methods=["POST"])
 def messenger_initialize():
-    """
-    Called by Intercom when the user opens the Messenger Home app.
-    Always returns Screen 1 (the landing card with the Reschedule button).
-    """
     return jsonify(_canvas_home())
 
 
 @app.route("/messenger/submit", methods=["POST"])
 def messenger_submit():
-    """
-    Called whenever a button with action.type = "submit" is tapped.
-
-    Routing logic:
-      • component_id == "start_reschedule"   → load order list (Screen 2)
-      • component_id == "select_order_<ID>"  → load calendar for that order (Screen 3)
-      • component_id == "slot_<YYYY-MM-DD>"  → confirm reschedule (Screen 4)
-      • component_id == "done_*" / "error_retry" → back to home (Screen 1)
-    """
     payload      = request.get_json(silent=True) or {}
     component_id = payload.get("component_id", "")
     stored       = (payload.get("current_canvas") or {}).get("stored_data") or {}
-    screen       = stored.get("screen", "home")
     customer_id  = _get_customer_id(payload)
-    # ── CTA on home card: show order list ─────────────────────────────────────
-    if component_id == "start_reschedule":
+
+    # ── Home buttons ──────────────────────────────────────────────────────────
+    if component_id in ("start_reschedule", "start_cancel", "start_return"):
         if not customer_id:
             return jsonify(_canvas_error("We couldn't identify your account. Please sign in and try again."))
-        eligible = _reschedule_eligible_orders(customer_id)
-        if not eligible:
-            return jsonify(_canvas_no_orders())
-        return jsonify(_canvas_order_list(eligible))
+        action = component_id[len("start_"):]   # "reschedule" | "cancel" | "return"
 
-    # ── Order selected: show calendar ─────────────────────────────────────────
-    if component_id.startswith("select_order_"):
-        # Reverse the sanitisation: underscores back to hyphens for the order ID
-        # Reverse: lowercase "ord_10103" → uppercase "ORD-10103"
-        raw = component_id[len("select_order_"):]          # e.g. "ord_10103"
-        order_id = raw.upper().replace("_", "-", 1)        # e.g. "ORD-10103"
+        if action == "reschedule":
+            orders = _reschedule_eligible(customer_id)
+        elif action == "cancel":
+            orders = _cancel_eligible(customer_id)
+        else:
+            orders = _return_eligible(customer_id)
+
+        if not orders:
+            return jsonify(_canvas_no_eligible(action))
+        return jsonify(_canvas_order_picker(orders, action))
+
+    # ── Order picked ──────────────────────────────────────────────────────────
+    if component_id.startswith("pick_"):
+        # format: pick_<action>_<safe_order_id>
+        parts  = component_id.split("_", 2)   # ["pick", action, safe_id]
+        action = parts[1]
+        safe   = parts[2]
+        order_id = _restore_id(safe)
+
         if order_id not in ORDERS:
             return jsonify(_canvas_error(f"Order {order_id} was not found."))
-        slots = weekday_slots()
-        if not slots:
-            return jsonify(_canvas_error("No delivery slots are available right now. Please try again tomorrow."))
-        return jsonify(_canvas_calendar(order_id, slots))
 
-    # ── Slot selected: confirm reschedule ─────────────────────────────────────
+        if action == "reschedule":
+            slots = weekday_slots()
+            if not slots:
+                return jsonify(_canvas_error("No delivery slots are available right now."))
+            return jsonify(_canvas_date_picker(order_id, slots))
+
+        elif action == "cancel":
+            return jsonify(_canvas_cancel_reason(order_id))
+
+        elif action == "return":
+            # Re-check eligibility at this point
+            elig = _return_eligibility_check(order_id)
+            if not elig.get("eligible"):
+                return jsonify(_canvas_return_ineligible(elig.get("reason", "This order is not eligible for a return.")))
+            return jsonify(_canvas_return_reason(order_id))
+
+    # ── Reschedule: slot selected ─────────────────────────────────────────────
     if component_id.startswith("slot_"):
-        new_date  = component_id[len("slot_"):]        # "YYYY-MM-DD"
-        order_id  = stored.get("order_id")
+        new_date    = component_id[len("slot_"):]
+        order_id    = stored.get("order_id")
         valid_slots = stored.get("slots", [])
-
         if not order_id or order_id not in ORDERS:
             return jsonify(_canvas_error("Could not find the selected order."))
         if new_date not in valid_slots:
             return jsonify(_canvas_error("That date is no longer available. Please select another."))
+        order = ORDERS[order_id]
+        if get_order_status(order) not in ("processing", "dispatched"):
+            return jsonify(_canvas_error("This order can no longer be rescheduled."))
+        order["estimated_delivery"] = new_date
+        return jsonify(_canvas_reschedule_done(order_id, new_date))
 
+    # ── Cancel: reason selected ───────────────────────────────────────────────
+    if component_id.startswith("cancel_reason_"):
+        reason   = component_id[len("cancel_reason_"):]
+        order_id = stored.get("order_id")
+        if not order_id or order_id not in ORDERS:
+            return jsonify(_canvas_error("Could not find the selected order."))
         order  = ORDERS[order_id]
         status = get_order_status(order)
-        if status not in ("processing", "dispatched"):
-            return jsonify(_canvas_error(
-                f"Order {order_id} can no longer be rescheduled (status: {status.replace('_', ' ')})."
-            ))
+        if status != "processing":
+            return jsonify(_canvas_error(f"Order {order_id} can no longer be cancelled (status: {status.replace('_',' ')})."))
+        # Commit the cancel
+        order["cancelled"] = True
+        STATUS_OVERRIDES[order_id] = "cancelled"
+        if order.get("stock_decremented"):
+            for item in order.get("items", []):
+                p = PRODUCTS.get(item["product_id"])
+                if p:
+                    p["stock"] += item["qty"]
+        return jsonify(_canvas_cancel_done(order_id))
 
-        # ── Commit the reschedule ───────────────────────────────────────────
-        order["estimated_delivery"] = new_date
-        return jsonify(_canvas_confirmation(order_id, new_date))
+    # ── Return: reason selected ───────────────────────────────────────────────
+    if component_id.startswith("return_reason_"):
+        reason   = component_id[len("return_reason_"):]
+        order_id = stored.get("order_id")
+        if not order_id:
+            return jsonify(_canvas_error("Could not find the selected order."))
+        return jsonify(_canvas_return_condition(order_id, reason))
 
-    # ── Terminal buttons (Done / Start over) → back to home ──────────────────
-    if component_id in ("done_no_orders", "done_confirmed", "error_retry"):
-        return jsonify(_canvas_home())
+    # ── Return: condition selected ────────────────────────────────────────────
+    if component_id.startswith("return_condition_"):
+        condition = component_id[len("return_condition_"):]
+        order_id  = stored.get("order_id")
+        reason    = stored.get("reason", "")
+        if not order_id:
+            return jsonify(_canvas_error("Could not find the selected order."))
+        return jsonify(_canvas_return_packaging(order_id, reason, condition))
 
-    # ── Fallback: unknown component ───────────────────────────────────────────
+    # ── Return: packaging answered ────────────────────────────────────────────
+    if component_id in ("return_pkg_yes", "return_pkg_no"):
+        has_pkg  = component_id == "return_pkg_yes"
+        order_id = stored.get("order_id")
+        reason   = stored.get("reason", "change_of_mind")
+        condition = stored.get("condition", "unused")
+        if not order_id or order_id not in ORDERS:
+            return jsonify(_canvas_error("Could not find the selected order."))
+
+        order = ORDERS[order_id]
+        # Commit the return via the existing return logic
+        return_id     = f"RET-{_return_counter[0]}"
+        _return_counter[0] += 1
+        today         = date.today()
+        refund_eta    = add_business_days(today, 7)
+        free_return   = reason in ("damaged_on_arrival", "defective", "wrong_item_received", "item_not_as_described")
+        item_names    = ", ".join(i["product_name"] for i in order.get("items", []))
+        refund_amount = _fmt_inr(order["price_total"])
+
+        if order.get("stock_decremented"):
+            for item in order.get("items", []):
+                p = PRODUCTS.get(item["product_id"])
+                if p:
+                    p["stock"] += item["qty"]
+
+        DYNAMIC_RETURNS[return_id] = {
+            "return_id": return_id, "order_id": order_id,
+            "customer_id": order["customer_id"],
+            "item_name": item_names, "reason": reason,
+            "condition": condition, "has_original_packaging": has_pkg,
+            "status": "return_requested",
+            "return_initiated": today.isoformat(), "return_received_date": None,
+            "refund_status": "pending", "refund_amount": refund_amount,
+            "refund_includes_shipping": free_return,
+            "refund_estimated_date": refund_eta.isoformat(),
+            "refund_issued_date": None, "refund_method": "original_payment_method",
+            "return_shipping": "free" if free_return else "₹200–₹500 (customer pays)",
+            "fin_note": None,
+        }
+        return jsonify(_canvas_return_done(order_id, return_id, refund_amount, refund_eta.isoformat()))
+
+    # ── Terminal / fallback ───────────────────────────────────────────────────
     return jsonify(_canvas_home())
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
