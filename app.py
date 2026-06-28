@@ -1783,7 +1783,6 @@ def _canvas_calendar(order_id: str, available_slots: list) -> dict:
     Past / weekend / unavailable dates show as muted plain text.
     The customer taps an available date → triggers submit with component_id = "slot_<date>".
     """
-    app      = _app()
     order    = ORDERS[order_id]
     est_del  = _fmt_date_long(order["estimated_delivery"])
     summary  = _item_summary(order["items"])
@@ -2033,8 +2032,6 @@ def messenger_submit():
     stored       = (payload.get("current_canvas") or {}).get("stored_data") or {}
     screen       = stored.get("screen", "home")
     customer_id  = _get_customer_id(payload)
-    app          = _app()
-
     # ── CTA on home card: show order list ─────────────────────────────────────
     if component_id == "start_reschedule":
         if not customer_id:
