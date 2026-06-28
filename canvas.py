@@ -93,16 +93,19 @@ def _fmt_inr(amount) -> str:
 
 def _get_customer_id(payload: dict) -> str | None:
     """
-    Extract customer_id from Intercom Messenger initialize/submit payload.
-    Intercom sends the user_id you set at boot — which is the customer_id.
+    Extract customer_id from Intercom payload.
+    Confirmed from logs:
+      - submit payloads:     payload["customer"]["user_id"]     e.g. "cust_005"
+      - initialize payloads: payload["contact"]["external_id"]  e.g. "cust_001"
     """
-    # Try all known payload shapes Intercom uses
-    contact = payload.get("contact") or payload.get("user") or {}
-    return (
-        contact.get("user_id")          # standard identified user
-        or contact.get("external_id")   # some Canvas Kit versions
-        or contact.get("id")            # Intercom internal ID (fallback)
-    )
+    # submit shape (primary — confirmed in logs)
+    customer = payload.get("customer") or {}
+    uid = customer.get("user_id") or customer.get("external_id")
+    if uid:
+        return uid
+    # initialize / contact shape (confirmed in logs)
+    contact = payload.get("contact") or {}
+    return contact.get("external_id") or contact.get("user_id")
 
 def _reschedule_eligible_orders(customer_id: str) -> list:
     """Return orders for customer that can be rescheduled (processing or dispatched)."""
@@ -490,30 +493,12 @@ def _canvas_error(message: str) -> dict:
 # ROUTES
 # ─────────────────────────────────────────────────────────────────────────────
 
-@canvas_bp.route("/messenger/debug", methods=["POST"])
-def messenger_debug():
-    """Temporary debug route — echoes the raw Intercom payload."""
-    import json, sys
-    payload = request.get_json(silent=True) or {}
-    print("=== INTERCOM PAYLOAD ===", file=sys.stderr)
-    print(json.dumps(payload, indent=2, default=str), file=sys.stderr)
-    customer_id = _get_customer_id(payload)
-    print(f"Resolved customer_id: {customer_id}", file=sys.stderr)
-    return jsonify({"received_keys": list(payload.keys()), "resolved_customer_id": customer_id})
-
-
 @canvas_bp.route("/messenger/initialize", methods=["POST"])
 def messenger_initialize():
     """
     Called by Intercom when the user opens the Messenger Home app.
-    Always returns Screen 1 (the landing card).
+    Always returns Screen 1 (the landing card with the Reschedule button).
     """
-    import json, sys
-    payload = request.get_json(silent=True) or {}
-    print("=== INITIALIZE PAYLOAD ===", file=sys.stderr)
-    print(json.dumps(payload, indent=2, default=str), file=sys.stderr)
-    customer_id = _get_customer_id(payload)
-    print(f"Resolved customer_id: {customer_id}", file=sys.stderr)
     return jsonify(_canvas_home())
 
 
