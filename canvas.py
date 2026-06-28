@@ -38,14 +38,17 @@ THEME
 """
 
 import calendar
+import importlib
 from datetime import date, timedelta
 from flask import Blueprint, request, jsonify
 
-# ── import shared helpers from app.py ──────────────────────────────────────────
-# canvas.py is imported AFTER app.py defines these, so the import works fine.
-from app import ORDERS, CUSTOMERS, STATUS_OVERRIDES, get_order_status, weekday_slots
-
 canvas_bp = Blueprint("canvas", __name__)
+
+# ── Lazy accessor — avoids circular import ─────────────────────────────────────
+# We import the `app` module only when the functions are called (not at load
+# time), so Python never hits the circular dependency at startup.
+def _app():
+    return importlib.import_module("app")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # THEME CONSTANTS  (NestKart palette)
@@ -99,11 +102,12 @@ def _get_customer_id(payload: dict) -> str | None:
 
 def _reschedule_eligible_orders(customer_id: str) -> list:
     """Return orders for customer that can be rescheduled (processing or dispatched)."""
+    app = _app()
     eligible = []
-    for order in ORDERS.values():
+    for order in app.ORDERS.values():
         if order["customer_id"] != customer_id:
             continue
-        status = get_order_status(order)
+        status = app.get_order_status(order)
         if status in ("processing", "dispatched"):
             eligible.append(order)
     # Most recent first
@@ -257,7 +261,8 @@ def _canvas_calendar(order_id: str, available_slots: list) -> dict:
     Past / weekend / unavailable dates show as muted plain text.
     The customer taps an available date → triggers submit with component_id = "slot_<date>".
     """
-    order    = ORDERS[order_id]
+    app      = _app()
+    order    = app.ORDERS[order_id]
     est_del  = _fmt_date_long(order["estimated_delivery"])
     summary  = _item_summary(order["items"])
 
@@ -506,6 +511,7 @@ def messenger_submit():
     stored       = (payload.get("current_canvas") or {}).get("stored_data") or {}
     screen       = stored.get("screen", "home")
     customer_id  = _get_customer_id(payload)
+    app          = _app()
 
     # ── CTA on home card: show order list ─────────────────────────────────────
     if component_id == "start_reschedule":
@@ -519,9 +525,9 @@ def messenger_submit():
     # ── Order selected: show calendar ─────────────────────────────────────────
     if component_id.startswith("select_order_"):
         order_id = component_id[len("select_order_"):]
-        if order_id not in ORDERS:
+        if order_id not in app.ORDERS:
             return jsonify(_canvas_error(f"Order {order_id} was not found."))
-        slots = weekday_slots()
+        slots = app.weekday_slots()
         if not slots:
             return jsonify(_canvas_error("No delivery slots are available right now. Please try again tomorrow."))
         return jsonify(_canvas_calendar(order_id, slots))
@@ -532,13 +538,13 @@ def messenger_submit():
         order_id  = stored.get("order_id")
         valid_slots = stored.get("slots", [])
 
-        if not order_id or order_id not in ORDERS:
+        if not order_id or order_id not in app.ORDERS:
             return jsonify(_canvas_error("Could not find the selected order."))
         if new_date not in valid_slots:
             return jsonify(_canvas_error("That date is no longer available. Please select another."))
 
-        order  = ORDERS[order_id]
-        status = get_order_status(order)
+        order  = app.ORDERS[order_id]
+        status = app.get_order_status(order)
         if status not in ("processing", "dispatched"):
             return jsonify(_canvas_error(
                 f"Order {order_id} can no longer be rescheduled (status: {status.replace('_', ' ')})."
